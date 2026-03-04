@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -37,6 +38,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'channels',
+    'mainapp',
 ]
 
 MIDDLEWARE = [
@@ -66,7 +69,14 @@ TEMPLATES = [
     },
 ]
 
+ASGI_APPLICATION = 'manipulator.asgi.application'
 WSGI_APPLICATION = 'manipulator.wsgi.application'
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    },
+}
 
 
 # Database
@@ -115,3 +125,6 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+MANIPULATOR_TCP_HOST = os.getenv('MANIPULATOR_TCP_HOST', '10.16.0.23')
+MANIPULATOR_TCP_PORT = int(os.getenv('MANIPULATOR_TCP_PORT', '10003'))
