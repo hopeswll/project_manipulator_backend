@@ -73,9 +73,6 @@ class MoveConsumer(AsyncWebsocketConsumer):
         if board_from not in (1, 2) or board_to not in (1, 2):
             return 'board_from and board_to must be either 1 or 2'
 
-        if board_from == board_to:
-            return 'board_from and board_to must be different'
-
         if not 1 <= pos_from <= 64 or not 1 <= pos_to <= 64:
             return 'pos_from and pos_to must be in range 1..64'
 

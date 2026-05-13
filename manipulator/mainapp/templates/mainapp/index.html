@@ -18,6 +18,7 @@
             --accent-target: #0d6efd;
             --accent-ok: #2a9d8f;
             --accent-err: #d62828;
+            --accent-sync: #8b5cf6;
             --shadow: 0 16px 30px rgba(19, 41, 61, 0.12);
         }
 
@@ -63,21 +64,14 @@
             letter-spacing: 0.03em;
         }
 
-        .ws-line {
+        .status-line {
             color: var(--text-muted);
             font-size: 0.95rem;
         }
 
-        .ws-state {
+        .api-state {
             font-weight: 700;
-        }
-
-        .ws-state.ok {
             color: var(--accent-ok);
-        }
-
-        .ws-state.err {
-            color: var(--accent-err);
         }
 
         .boards {
@@ -101,6 +95,7 @@
         }
 
         .cell {
+            position: relative;
             aspect-ratio: 1 / 1;
             border: 1px solid rgba(19, 41, 61, 0.18);
             border-radius: 10px;
@@ -137,6 +132,31 @@
             opacity: 0.9;
         }
 
+        .cell .piece-glyph {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+            line-height: 1;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.28);
+        }
+
+        .cell.piece-white .piece-glyph {
+            color: #f8fafc;
+            text-shadow: 0 1px 0 rgba(2, 6, 23, 0.35), 0 0 6px rgba(2, 6, 23, 0.4);
+        }
+
+        .cell.piece-black .piece-glyph {
+            color: #0f172a;
+            text-shadow: 0 1px 0 rgba(248, 250, 252, 0.2), 0 0 5px rgba(15, 23, 42, 0.3);
+        }
+
+        .cell.occupied .piece-glyph {
+            display: block;
+        }
+
         .cell.source {
             outline: 3px solid var(--accent-source);
             z-index: 1;
@@ -145,6 +165,10 @@
         .cell.target {
             outline: 3px solid var(--accent-target);
             z-index: 1;
+        }
+
+        .cell.sync-draft {
+            box-shadow: inset 0 0 0 2px var(--accent-sync);
         }
 
         .controls {
@@ -172,6 +196,23 @@
             font-weight: 700;
         }
 
+        .board-select {
+            margin-left: 6px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: #ffffff;
+            color: var(--text-main);
+            font: inherit;
+            font-size: 0.88rem;
+            font-weight: 700;
+            padding: 4px 8px;
+        }
+
+        .mode-hint {
+            font-size: 0.87rem;
+            color: var(--text-muted);
+        }
+
         .buttons {
             display: flex;
             flex-wrap: wrap;
@@ -187,6 +228,11 @@
             cursor: pointer;
         }
 
+        button:disabled {
+            cursor: not-allowed;
+            opacity: 0.45;
+        }
+
         .btn-primary {
             background: #0b6e4f;
             color: #fff;
@@ -197,9 +243,36 @@
             color: #213547;
         }
 
-        .btn-primary:disabled {
-            cursor: not-allowed;
-            opacity: 0.4;
+        .btn-warning {
+            background: #f59e0b;
+            color: #fff;
+        }
+
+        .btn-sync {
+            background: var(--accent-sync);
+            color: #fff;
+        }
+
+        .state-block {
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            background: #fbfdff;
+            padding: 10px;
+            font-size: 0.84rem;
+            color: var(--text-muted);
+        }
+
+        .state-json {
+            display: block;
+            width: 100%;
+            border: 0;
+            resize: vertical;
+            min-height: 70px;
+            font-family: "JetBrains Mono", "Consolas", monospace;
+            font-size: 0.8rem;
+            background: transparent;
+            color: #2f3f4e;
+            margin-top: 6px;
         }
 
         .log {
@@ -240,9 +313,9 @@
     <main class="layout">
         <section class="panel header">
             <h1>Manipulator Board Control</h1>
-            <div class="ws-line">
-                WebSocket:
-                <span id="ws-state" class="ws-state err">connecting</span>
+            <div class="status-line">
+                Mode:
+                <span id="api-state" class="api-state">HTTP API</span>
             </div>
         </section>
 
@@ -267,20 +340,55 @@
         <section class="panel controls">
             <div class="control-line">
                 Direction:
+                <label class="badge" for="board-from-select">
+                    From board
+                    <select id="board-from-select" class="board-select">
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                    </select>
+                </label>
+                <label class="badge" for="board-to-select">
+                    To board
+                    <select id="board-to-select" class="board-select">
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                    </select>
+                </label>
                 <span class="badge">Board <span id="direction-from">2</span> -> Board <span id="direction-to">1</span></span>
                 <span class="badge">A1 = 1 ... H8 = 64</span>
+                <span class="badge">Top: black | Bottom: white</span>
             </div>
+
+            <div class="control-line">
+                <span class="badge">Checksum: <span id="checksum" style="margin-left: 6px;">-</span></span>
+                <span class="badge">Updated: <span id="updated-at" style="margin-left: 6px;">-</span></span>
+                <span class="badge">Pieces B1/B2/Total: <span id="piece-count" style="margin-left: 6px;">0/0/0</span></span>
+            </div>
+
+            <div id="mode-hint" class="mode-hint">Cross-board mode</div>
+
             <div class="control-line">
                 Source:
                 <span id="source-label" class="badge">not selected</span>
                 Target:
                 <span id="target-label" class="badge">not selected</span>
             </div>
+
             <div class="buttons">
                 <button id="send-move" class="btn-primary" disabled>Send Move</button>
                 <button id="swap" class="btn-secondary" type="button">Swap Direction</button>
-                <button id="reset" class="btn-secondary" type="button">Clear Selection</button>
+                <button id="clear-selection" class="btn-secondary" type="button">Clear Selection</button>
+                <button id="reload-state" class="btn-secondary" type="button">Reload State</button>
+                <button id="toggle-sync" class="btn-warning" type="button">Manual Sync Mode</button>
+                <button id="save-sync" class="btn-sync" type="button" disabled>Save Sync State</button>
+                <button id="reset-default" class="btn-secondary" type="button">Reset Default Setup</button>
             </div>
+
+            <div class="state-block">
+                Server state snapshot (for verification):
+                <textarea id="state-json" class="state-json" readonly></textarea>
+            </div>
+
             <div id="log" class="log"></div>
         </section>
     </main>
@@ -296,20 +404,42 @@
                 targetPos: null,
                 sourceCell: null,
                 targetCell: null,
-                socket: null,
-                connected: false
+                sameBoardStep: "source",
+                manualMode: false,
+                serverState: {
+                    board_1: new Set(),
+                    board_2: new Set(),
+                    checksum: "-",
+                    updated_at: null,
+                    piece_count: { board_1: 0, board_2: 0, total: 0 }
+                },
+                draftState: null,
+                cellsByBoard: {
+                    1: new Map(),
+                    2: new Map()
+                }
             };
 
-            const wsStateElement = document.getElementById("ws-state");
             const boardOneRoot = document.getElementById("board-1");
             const boardTwoRoot = document.getElementById("board-2");
+            const boardFromSelect = document.getElementById("board-from-select");
+            const boardToSelect = document.getElementById("board-to-select");
+            const modeHint = document.getElementById("mode-hint");
             const sourceLabel = document.getElementById("source-label");
             const targetLabel = document.getElementById("target-label");
             const sendButton = document.getElementById("send-move");
             const swapButton = document.getElementById("swap");
-            const resetButton = document.getElementById("reset");
+            const clearSelectionButton = document.getElementById("clear-selection");
+            const reloadStateButton = document.getElementById("reload-state");
+            const toggleSyncButton = document.getElementById("toggle-sync");
+            const saveSyncButton = document.getElementById("save-sync");
+            const resetDefaultButton = document.getElementById("reset-default");
             const directionFrom = document.getElementById("direction-from");
             const directionTo = document.getElementById("direction-to");
+            const checksumLabel = document.getElementById("checksum");
+            const updatedAtLabel = document.getElementById("updated-at");
+            const pieceCountLabel = document.getElementById("piece-count");
+            const stateJson = document.getElementById("state-json");
             const logRoot = document.getElementById("log");
 
             function indexToNotation(index) {
@@ -318,19 +448,42 @@
                 return `${file}${rank}`;
             }
 
-            function setSocketState(isConnected, text) {
-                state.connected = isConnected;
-                wsStateElement.textContent = text;
-                wsStateElement.classList.toggle("ok", isConnected);
-                wsStateElement.classList.toggle("err", !isConnected);
-                updateSendButton();
-            }
-
             function log(message, level = "info") {
                 const row = document.createElement("p");
                 row.className = `log-row ${level === "error" ? "err" : level === "ok" ? "ok" : ""}`.trim();
                 row.textContent = `${new Date().toLocaleTimeString()}  ${message}`;
                 logRoot.prepend(row);
+            }
+
+            function cloneSet(setValue) {
+                return new Set([...setValue]);
+            }
+
+            function createDraftFromServer() {
+                return {
+                    board_1: cloneSet(state.serverState.board_1),
+                    board_2: cloneSet(state.serverState.board_2)
+                };
+            }
+
+            function currentOccupancyState() {
+                if (state.manualMode && state.draftState) {
+                    return state.draftState;
+                }
+                return state.serverState;
+            }
+
+            function boardSet(container, boardId) {
+                return boardId === 1 ? container.board_1 : container.board_2;
+            }
+
+            function pieceColorByPosition(pos) {
+                const rank = Math.floor((pos - 1) / 8) + 1;
+                return rank >= 5 ? "black" : "white";
+            }
+
+            function isOccupied(boardId, pos) {
+                return boardSet(currentOccupancyState(), boardId).has(pos);
             }
 
             function clearSelection() {
@@ -344,6 +497,7 @@
                 state.targetPos = null;
                 state.sourceCell = null;
                 state.targetCell = null;
+                state.sameBoardStep = "source";
                 updateSelectionLabels();
                 updateSendButton();
             }
@@ -354,7 +508,7 @@
             }
 
             function updateSendButton() {
-                sendButton.disabled = !state.connected || !state.sourcePos || !state.targetPos;
+                sendButton.disabled = state.manualMode || !state.sourcePos || !state.targetPos;
             }
 
             function setSource(pos, cell) {
@@ -379,110 +533,310 @@
                 updateSendButton();
             }
 
-            function buildBoard(root, boardId) {
-                for (let rank = 8; rank >= 1; rank -= 1) {
-                    for (let file = 1; file <= 8; file += 1) {
-                        const pos = (rank - 1) * 8 + file;
-                        const cell = document.createElement("button");
-                        const notation = `${FILES[file - 1]}${rank}`;
-                        const isLight = (rank + file) % 2 === 0;
-                        cell.type = "button";
-                        cell.className = `cell ${isLight ? "light" : "dark"}`;
-                        cell.dataset.boardId = String(boardId);
-                        cell.dataset.pos = String(pos);
-                        cell.innerHTML = `<span class="notation">${notation}</span><span class="number">${pos}</span>`;
-                        cell.addEventListener("click", () => {
-                            if (boardId === state.boardFrom) {
-                                setSource(pos, cell);
-                                log(`Source selected: board ${boardId}, ${notation} (${pos})`);
-                                return;
-                            }
-                            if (boardId === state.boardTo) {
-                                setTarget(pos, cell);
-                                log(`Target selected: board ${boardId}, ${notation} (${pos})`);
-                                return;
-                            }
-                            log(`Board ${boardId} is not active for current direction`, "error");
-                        });
-                        root.appendChild(cell);
-                    }
-                }
+            function renderOccupancy() {
+                const activeState = currentOccupancyState();
+
+                [1, 2].forEach((boardId) => {
+                    const map = state.cellsByBoard[boardId];
+                    const activeSet = boardSet(activeState, boardId);
+                    const serverSet = boardSet(state.serverState, boardId);
+
+                    map.forEach((cell, pos) => {
+                        const activeOccupied = activeSet.has(pos);
+                        const serverOccupied = serverSet.has(pos);
+                        const color = pieceColorByPosition(pos);
+                        const glyph = cell.querySelector(".piece-glyph");
+                        cell.classList.toggle("occupied", activeOccupied);
+                        cell.classList.toggle("piece-black", activeOccupied && color === "black");
+                        cell.classList.toggle("piece-white", activeOccupied && color === "white");
+                        cell.classList.toggle("sync-draft", state.manualMode && activeOccupied !== serverOccupied);
+                        if (glyph) {
+                            glyph.textContent = !activeOccupied ? "" : color === "black" ? "♟" : "♙";
+                        }
+                    });
+                });
             }
 
-            function connectWebSocket() {
-                const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-                const url = `${protocol}://${window.location.host}/ws/move/`;
-                state.socket = new WebSocket(url);
-                setSocketState(false, "connecting");
-
-                state.socket.addEventListener("open", () => {
-                    setSocketState(true, "connected");
-                    log("WebSocket connected", "ok");
-                });
-
-                state.socket.addEventListener("close", () => {
-                    setSocketState(false, "disconnected");
-                    log("WebSocket disconnected. Reconnecting in 2s...", "error");
-                    window.setTimeout(connectWebSocket, 2000);
-                });
-
-                state.socket.addEventListener("error", () => {
-                    setSocketState(false, "error");
-                    log("WebSocket error", "error");
-                });
-
-                state.socket.addEventListener("message", (event) => {
-                    let payload;
-                    try {
-                        payload = JSON.parse(event.data);
-                    } catch (error) {
-                        log(`Invalid message from server: ${event.data}`, "error");
-                        return;
-                    }
-
-                    if (payload.type === "move_result") {
-                        if (payload.ok) {
-                            log(`Move sent: ${payload.command}. Response: ${payload.response || "empty"}`, "ok");
-                        } else {
-                            log(`Move failed: ${payload.error || "unknown error"}`, "error");
-                        }
-                        return;
-                    }
-
-                    if (payload.type === "error") {
-                        log(`Server validation error: ${payload.message}`, "error");
-                        return;
-                    }
-
-                    if (payload.type === "connection") {
-                        log(payload.message, "ok");
-                    }
-                });
+            function updateModeHint() {
+                if (state.manualMode) {
+                    modeHint.textContent = "Manual sync mode: click cells to toggle occupied/empty, then Save Sync State";
+                    return;
+                }
+                if (state.boardFrom === state.boardTo) {
+                    modeHint.textContent = "Same-board mode: clicks alternate Source -> Target";
+                    return;
+                }
+                modeHint.textContent = "Cross-board mode: source and target are selected on different boards";
             }
 
             function updateDirectionBadges() {
                 directionFrom.textContent = String(state.boardFrom);
                 directionTo.textContent = String(state.boardTo);
+                boardFromSelect.value = String(state.boardFrom);
+                boardToSelect.value = String(state.boardTo);
+                updateModeHint();
             }
 
-            sendButton.addEventListener("click", () => {
-                if (!state.socket || state.socket.readyState !== WebSocket.OPEN) {
-                    log("WebSocket is not connected", "error");
+            function toSortedArray(setValue) {
+                return [...setValue].sort((a, b) => a - b);
+            }
+
+            function renderStateSummary() {
+                checksumLabel.textContent = state.serverState.checksum || "-";
+
+                const updatedRaw = state.serverState.updated_at;
+                if (updatedRaw) {
+                    const date = new Date(updatedRaw);
+                    updatedAtLabel.textContent = Number.isNaN(date.getTime()) ? updatedRaw : date.toLocaleString();
+                } else {
+                    updatedAtLabel.textContent = "-";
+                }
+
+                const pieceCount = state.serverState.piece_count || { board_1: 0, board_2: 0, total: 0 };
+                pieceCountLabel.textContent = `${pieceCount.board_1}/${pieceCount.board_2}/${pieceCount.total}`;
+
+                const board1Array = toSortedArray(state.serverState.board_1);
+                const board2Array = toSortedArray(state.serverState.board_2);
+                stateJson.value = JSON.stringify(
+                    {
+                        board_1: board1Array,
+                        board_2: board2Array,
+                        checksum: state.serverState.checksum,
+                        updated_at: state.serverState.updated_at
+                    },
+                    null,
+                    2
+                );
+            }
+
+            function applyServerState(payloadState) {
+                state.serverState.board_1 = new Set(payloadState.board_1 || []);
+                state.serverState.board_2 = new Set(payloadState.board_2 || []);
+                state.serverState.checksum = payloadState.checksum || "-";
+                state.serverState.updated_at = payloadState.updated_at || null;
+                state.serverState.piece_count = payloadState.piece_count || {
+                    board_1: state.serverState.board_1.size,
+                    board_2: state.serverState.board_2.size,
+                    total: state.serverState.board_1.size + state.serverState.board_2.size
+                };
+                renderStateSummary();
+                renderOccupancy();
+            }
+
+            function setManualMode(enabled) {
+                if (enabled) {
+                    state.manualMode = true;
+                    state.draftState = createDraftFromServer();
+                    toggleSyncButton.textContent = "Exit Manual Mode";
+                    saveSyncButton.disabled = false;
+                } else {
+                    state.manualMode = false;
+                    state.draftState = null;
+                    toggleSyncButton.textContent = "Manual Sync Mode";
+                    saveSyncButton.disabled = true;
+                }
+
+                clearSelection();
+                updateModeHint();
+                renderOccupancy();
+                updateSendButton();
+            }
+
+            async function requestJson(url, options = {}) {
+                const response = await fetch(url, options);
+                let data = null;
+                try {
+                    data = await response.json();
+                } catch (error) {
+                    data = { ok: false, error: `Invalid JSON response: ${error}` };
+                }
+                return { response, data };
+            }
+
+            async function loadState(withLog = true) {
+                try {
+                    const { response, data } = await requestJson("/api/state/");
+                    if (!response.ok || !data.ok) {
+                        log(`State load failed: ${data.error || response.status}`, "error");
+                        return;
+                    }
+                    applyServerState(data.state);
+                    if (withLog) {
+                        log(`State loaded. Checksum: ${data.state.checksum}`, "ok");
+                    }
+                } catch (error) {
+                    log(`State load error: ${error}`, "error");
+                }
+            }
+
+            async function saveManualSync() {
+                if (!state.manualMode || !state.draftState) {
                     return;
                 }
 
                 const payload = {
-                    action: "move",
+                    board_1: toSortedArray(state.draftState.board_1),
+                    board_2: toSortedArray(state.draftState.board_2)
+                };
+
+                try {
+                    const { response, data } = await requestJson("/api/state/sync/", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok || !data.ok) {
+                        log(`Manual sync failed: ${data.error || response.status}`, "error");
+                        return;
+                    }
+
+                    applyServerState(data.state);
+                    setManualMode(false);
+                    log("Manual synchronization saved", "ok");
+                } catch (error) {
+                    log(`Manual sync request failed: ${error}`, "error");
+                }
+            }
+
+            async function resetDefaultState() {
+                try {
+                    const { response, data } = await requestJson("/api/state/reset/", {
+                        method: "POST"
+                    });
+
+                    if (!response.ok || !data.ok) {
+                        log(`Reset failed: ${data.error || response.status}`, "error");
+                        return;
+                    }
+
+                    applyServerState(data.state);
+                    if (state.manualMode) {
+                        setManualMode(false);
+                    }
+                    clearSelection();
+                    log("State reset to default setup", "ok");
+                } catch (error) {
+                    log(`Reset request failed: ${error}`, "error");
+                }
+            }
+
+            function buildBoard(root, boardId) {
+                for (let rank = 8; rank >= 1; rank -= 1) {
+                    for (let file = 1; file <= 8; file += 1) {
+                        const pos = (rank - 1) * 8 + file;
+                        const notation = `${FILES[file - 1]}${rank}`;
+                        const isLight = (rank + file) % 2 === 0;
+
+                        const cell = document.createElement("button");
+                        cell.type = "button";
+                        cell.className = `cell ${isLight ? "light" : "dark"}`;
+                        cell.dataset.boardId = String(boardId);
+                        cell.dataset.pos = String(pos);
+                        cell.innerHTML = `<span class="piece-glyph"></span><span class="notation">${notation}</span><span class="number">${pos}</span>`;
+
+                        cell.addEventListener("click", () => {
+                            if (state.manualMode) {
+                                const draftSet = boardSet(state.draftState, boardId);
+                                if (draftSet.has(pos)) {
+                                    draftSet.delete(pos);
+                                    log(`Manual sync: board ${boardId} ${notation} (${pos}) marked EMPTY`);
+                                } else {
+                                    draftSet.add(pos);
+                                    log(`Manual sync: board ${boardId} ${notation} (${pos}) marked OCCUPIED`);
+                                }
+                                renderOccupancy();
+                                return;
+                            }
+
+                            const occupied = isOccupied(boardId, pos);
+
+                            if (boardId === state.boardFrom && boardId === state.boardTo) {
+                                if (state.sameBoardStep === "source") {
+                                    if (!occupied) {
+                                        log(`Source cell ${notation} (${pos}) is empty`, "error");
+                                        return;
+                                    }
+                                    setSource(pos, cell);
+                                    state.sameBoardStep = "target";
+                                    log(`Source selected: board ${boardId}, ${notation} (${pos}). Select target on same board.`);
+                                } else {
+                                    if (pos === state.sourcePos) {
+                                        log("Source and target must be different", "error");
+                                        return;
+                                    }
+                                    if (occupied) {
+                                        log(`Target cell ${notation} (${pos}) is occupied`, "error");
+                                        return;
+                                    }
+                                    setTarget(pos, cell);
+                                    state.sameBoardStep = "source";
+                                    log(`Target selected: board ${boardId}, ${notation} (${pos}).`);
+                                }
+                                return;
+                            }
+
+                            if (boardId === state.boardFrom) {
+                                if (!occupied) {
+                                    log(`Source cell ${notation} (${pos}) is empty`, "error");
+                                    return;
+                                }
+                                setSource(pos, cell);
+                                log(`Source selected: board ${boardId}, ${notation} (${pos})`);
+                                return;
+                            }
+
+                            if (boardId === state.boardTo) {
+                                if (occupied) {
+                                    log(`Target cell ${notation} (${pos}) is occupied`, "error");
+                                    return;
+                                }
+                                setTarget(pos, cell);
+                                log(`Target selected: board ${boardId}, ${notation} (${pos})`);
+                                return;
+                            }
+
+                            log(`Board ${boardId} is not active for current direction`, "error");
+                        });
+
+                        state.cellsByBoard[boardId].set(pos, cell);
+                        root.appendChild(cell);
+                    }
+                }
+            }
+
+            sendButton.addEventListener("click", async () => {
+                const payload = {
                     board_from: state.boardFrom,
                     pos_from: state.sourcePos,
                     board_to: state.boardTo,
                     pos_to: state.targetPos
                 };
 
-                state.socket.send(JSON.stringify(payload));
                 log(
                     `Move request: board ${payload.board_from} (${indexToNotation(payload.pos_from)} / ${payload.pos_from}) -> board ${payload.board_to} (${indexToNotation(payload.pos_to)} / ${payload.pos_to})`
                 );
+
+                try {
+                    const { response, data } = await requestJson("/api/move/", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (data.state) {
+                        applyServerState(data.state);
+                    }
+
+                    if (response.ok && data.ok) {
+                        clearSelection();
+                        log(`Move sent: ${data.command}. Response: ${data.response || "empty"}`, "ok");
+                    } else {
+                        log(`Move failed: ${data.error || response.status}`, "error");
+                    }
+                } catch (error) {
+                    log(`Move request failed: ${error}`, "error");
+                }
             });
 
             swapButton.addEventListener("click", () => {
@@ -494,16 +848,56 @@
                 log(`Direction switched: board ${state.boardFrom} -> board ${state.boardTo}`);
             });
 
-            resetButton.addEventListener("click", () => {
+            boardFromSelect.addEventListener("change", () => {
+                state.boardFrom = Number(boardFromSelect.value);
+                updateDirectionBadges();
+                clearSelection();
+                log(`Source board changed to ${state.boardFrom}`);
+            });
+
+            boardToSelect.addEventListener("change", () => {
+                state.boardTo = Number(boardToSelect.value);
+                updateDirectionBadges();
+                clearSelection();
+                log(`Target board changed to ${state.boardTo}`);
+            });
+
+            clearSelectionButton.addEventListener("click", () => {
                 clearSelection();
                 log("Selection cleared");
+            });
+
+            reloadStateButton.addEventListener("click", async () => {
+                await loadState(true);
+            });
+
+            toggleSyncButton.addEventListener("click", () => {
+                if (state.manualMode) {
+                    setManualMode(false);
+                    log("Manual sync mode disabled (unsaved draft discarded)");
+                    return;
+                }
+                setManualMode(true);
+                log("Manual sync mode enabled");
+            });
+
+            saveSyncButton.addEventListener("click", async () => {
+                await saveManualSync();
+            });
+
+            resetDefaultButton.addEventListener("click", async () => {
+                await resetDefaultState();
             });
 
             buildBoard(boardOneRoot, 1);
             buildBoard(boardTwoRoot, 2);
             updateDirectionBadges();
             updateSelectionLabels();
-            connectWebSocket();
+            updateSendButton();
+            renderStateSummary();
+            renderOccupancy();
+
+            loadState(true);
         })();
     </script>
 </body>

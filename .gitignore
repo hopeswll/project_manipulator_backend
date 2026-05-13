@@ -1,2 +1,6 @@
 env/
 __pycache__/
+Agents.MD
+node_modules
+.parcel-cache
+.DS_Store
