@@ -1,6 +1,8 @@
 from django.urls import path
 
 from .views import (
+    chess_boards,
+    chess_boards_update,
     chess_legal_moves,
     chess_move,
     chess_reset,
@@ -24,4 +26,6 @@ urlpatterns = [
     path('api/chess/legal-moves/', chess_legal_moves, name='chess-legal-moves'),
     path('api/chess/move/', chess_move, name='chess-move'),
     path('api/chess/reset/', chess_reset, name='chess-reset'),
+    path('api/chess/boards', chess_boards, name='chess-boards'),
+    path('api/chess/boards-update', chess_boards_update, name='chess-boards-update'),
 ]

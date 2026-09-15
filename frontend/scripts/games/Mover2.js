@@ -1,6 +1,6 @@
 import GameBase from "../GameBase.js"
 
-const BACKEND = 'http://127.0.0.1:8081'
+const BACKEND = 'http://127.0.0.1:8000'
 
 const SYMBOLS = {
   white: { king: '♔', queen: '♕', rook: '♖', bishop: '♗', knight: '♘', pawn: '♙' },
@@ -119,7 +119,7 @@ class Mover2 extends GameBase {
 
     try {
       // 2. Делаем физический ход манипулятором
-      const res = await fetch(`${BACKEND}/api/move`, {
+      const res = await fetch(`${BACKEND}/api/move/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
