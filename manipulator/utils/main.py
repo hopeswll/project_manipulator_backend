@@ -18,7 +18,8 @@ def send_move_command(
     pos_from: int,
     board_to: int,
     pos_to: int,
-    timeout: float = 5.0,
+    timeout: float = 30.0,
+    wait_for_response: bool = True,
 ) -> MoveCommandResult:
     command = f"Move,{board_from},{pos_from},{board_to},{pos_to}\r\n"
 
@@ -27,6 +28,9 @@ def send_move_command(
             client_socket.settimeout(timeout)
             client_socket.connect((ip, port))
             client_socket.sendall(command.encode("ascii"))
+
+            if not wait_for_response:
+                return MoveCommandResult(ok=True, command=command.strip(), response=None)
 
             response_data = b""
             try:

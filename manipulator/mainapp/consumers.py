@@ -56,6 +56,7 @@ class MoveConsumer(AsyncWebsocketConsumer):
             pos_from,
             board_to,
             pos_to,
+            wait_for_response=False,
         )
 
         await self._send(
