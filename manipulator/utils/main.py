@@ -61,8 +61,18 @@ def send_move_command(
 
 
 if __name__ == "__main__":
-    print("=== TCP клиент для отправки команд ===")
+    import os
+
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "manipulator.settings")
+    import django
+
+    django.setup()
+
+    from django.conf import settings
+
+    host = settings.MANIPULATOR_TCP_HOST
+    port = settings.MANIPULATOR_TCP_PORT
+    print(f"=== TCP клиент для отправки команд ({host}:{port}) ===")
     for move in ((2, 1, 1, 1), (1, 1, 2, 1)):
-        result = send_move_command("10.16.0.23", 10003, *move)
-        print("A")
+        result = send_move_command(host, port, *move)
         print(result)

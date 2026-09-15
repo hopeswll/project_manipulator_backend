@@ -1,6 +1,7 @@
 import json
 from unittest.mock import patch
 
+from django.conf import settings
 from django.test import TestCase
 from django.urls import reverse
 
@@ -54,7 +55,7 @@ class ChessApiTests(TestCase):
         self.assertTrue(payload["ok"])
         self.assertEqual(payload["move"], "e2e4")
         self.assertEqual(send_mock.call_count, 1)
-        self.assertEqual(send_mock.call_args_list[0].args[1], 10003)
+        self.assertEqual(send_mock.call_args_list[0].args[1], settings.MANIPULATOR_TCP_PORT)
         self.assertEqual(send_mock.call_args_list[0].args[2:], (2, 13, 2, 29))
 
         state_response = self.client.get(reverse("chess-state"))
