@@ -10,6 +10,7 @@ from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
+from chess.board import Board
 from chess.game import ChessGame
 
 from .models import BoardState, ChessGameState, default_board_two_positions
@@ -544,6 +545,54 @@ def chess_move(request):
             "move": result.get("move"),
             "command_results": command_results,
             "state": _serialize_chess_state(state),
+        }
+    )
+
+
+@require_http_methods(["GET"])
+def chess_boards(request):
+    state = _get_chess_state(lock=False)
+    return JsonResponse(
+        {
+            "ok": True,
+            "board1": state.state.get("board_1", []),
+            "board2": state.state.get("board_2", []),
+        }
+    )
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def chess_boards_update(request):
+    try:
+        payload = _parse_payload(request)
+    except ValueError as exc:
+        return JsonResponse({"ok": False, "error": str(exc)}, status=400)
+
+    board1 = payload.get("board1")
+    board2 = payload.get("board2")
+
+    if not isinstance(board1, list) or not isinstance(board2, list):
+        return JsonResponse({"ok": False, "error": "board1 and board2 must be lists"}, status=400)
+
+    try:
+        Board.from_list(board1)
+        Board.from_list(board2)
+    except ValueError as exc:
+        return JsonResponse({"ok": False, "error": str(exc)}, status=400)
+
+    with transaction.atomic():
+        state = _get_chess_state(lock=True)
+        state.state["board_1"] = board1
+        state.state["board_2"] = board2
+        state.state["pieces"] = board2
+        state.save(update_fields=["state", "updated_at"])
+
+    return JsonResponse(
+        {
+            "ok": True,
+            "board1": state.state["board_1"],
+            "board2": state.state["board_2"],
         }
     )
 

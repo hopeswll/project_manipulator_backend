@@ -1,6 +1,6 @@
 import GameBase from "../GameBase.js"
 
-const BACKEND = 'http://127.0.0.1:8081'
+const BACKEND = 'http://127.0.0.1:8000'
 
 const SYMBOLS = {
   white: { king: '♔', queen: '♕', rook: '♖', bishop: '♗', knight: '♘', pawn: '♙' },
