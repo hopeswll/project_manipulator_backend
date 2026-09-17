@@ -26,7 +26,20 @@ SECRET_KEY = 'django-insecure-wf$e67t&yxd54wht7n^!adu!1h-8-@j8dy-(45$_&axh#2q2i8
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+# Localhost is always allowed; '10.16.0.*' covers the lab LAN where the
+# manipulator controller lives. Extra hosts can be added via env var
+# DJANGO_ALLOWED_HOSTS (comma-separated).
+ALLOWED_HOSTS = [
+    '127.0.0.1',
+    'localhost',
+    '[::1]',
+    '10.16.0.*',
+]
+ALLOWED_HOSTS += [
+    host.strip()
+    for host in os.getenv('DJANGO_ALLOWED_HOSTS', '').split(',')
+    if host.strip()
+]
 
 
 # Application definition
@@ -120,5 +133,9 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
+# HTTP port of this backend (used by manage.py runserver default).
+DJANGO_HTTP_PORT = int(os.getenv('DJANGO_HTTP_PORT', '8000'))
+
+# TCP endpoint of the manipulator controller.
 MANIPULATOR_TCP_HOST = os.getenv('MANIPULATOR_TCP_HOST', '10.16.0.23')
-MANIPULATOR_TCP_PORT = int(os.getenv('MANIPULATOR_TCP_PORT', '10003'))
+MANIPULATOR_TCP_PORT = int(os.getenv('MANIPULATOR_TCP_PORT', '10004'))
